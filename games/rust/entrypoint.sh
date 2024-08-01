@@ -5,9 +5,35 @@ cd /home/container
 export INTERNAL_IP=`ip route get 1 | awk '{print $(NF-2);exit}'`
 
 
+# retry logic for steamcmd
+MAX_RETRIES=5
+RETRY_DELAY=1
+
+update_server() {
+    local retry_count=0
+
+    while [[ $retry_count -lt $MAX_RETRIES ]]; do
+        ./steamcmd/steamcmd.sh +force_install_dir /home/container +login anonymous +app_update 258550 +quit
+
+        if [[ $? -ne 0 ]]; then
+            echo "An error occured while trying to update the server."
+            retry_count=$((retry_count + 1))
+            if [[ $retry_count -lt $MAX_RETRIES ]]; then
+                echo "Waiting for $RETRY_DELAY seconds before retrying..."
+                sleep $RETRY_DELAY
+            else
+                echo "Failed to update game server after $MAX_RETRIES attempts."
+            fi
+        else
+            break
+        fi
+    done
+}
+
+
 ## if auto_update is not set or to 1 update
 if [ -z ${AUTO_UPDATE} ] || [ "${AUTO_UPDATE}" == "1" ]; then
-	./steamcmd/steamcmd.sh +force_install_dir /home/container +login anonymous +app_update 258550 +quit
+	update_server
 else
     echo -e "Not updating game server as auto update was set to 0. Starting Server"
 fi
